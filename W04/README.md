@@ -234,7 +234,6 @@ By the end of this lab, you will be able to:
 2. **Find a Cloud Icon**
    - Search for a free cloud computing icon online (PNG format)
    - Download and save as "cloud-icon.png"
-   - Or use this placeholder: Create a simple 200x200 colored rectangle
 
 3. **Upload Website Files**
    - Upload all files (index.html, style.css, error.html, cloud-icon.png) to your S3 bucket
