@@ -157,7 +157,6 @@ sudo echo "<h1>Hello from $(hostname)!</h1>" > /var/www/html/index.html
 ## Challenge
 
 - Research and configure automatic security updates
-- Set up CloudWatch detailed monitoring for your instance
 
 ## Cleanup
 
