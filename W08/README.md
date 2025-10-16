@@ -1,92 +1,106 @@
-# Week 08 - IAM & Security Lab
+# Week 08 - IAM & Security Lab (Modified for AWS Learner Labs)
 
-Welcome to the final technical lab before the Cloud-a-thon! This week we'll master AWS Identity and Access Management (IAM) and implement comprehensive security best practices.
+Welcome to the final technical lab before the Cloud-a-thon! This week we'll master AWS Identity and Access Management (IAM) and implement comprehensive security best practices within the constraints of AWS Learner Labs.
+
+## ⚠️ AWS Learner Lab Limitations
+- **Cannot create new IAM roles** - We'll work with existing roles
+- **Cannot modify trust relationships** - We'll use pre-configured roles
+- **Can create users, groups, and policies** - We'll focus on these
+- **Limited CloudTrail access** - May be pre-configured
+- **Cannot enable MFA on root account** - Will practice with IAM users only
 
 ## Learning Objectives
 By the end of this lab, you will be able to:
-- Create and manage IAM users, groups, and roles
+- Create and manage IAM users, groups, and policies
 - Design and implement least-privilege access policies
-- Configure Multi-Factor Authentication (MFA)
+- Configure Multi-Factor Authentication (MFA) for IAM users
 - Use AWS CLI with programmatic access
-- Implement cross-service role assumptions
-- Set up CloudTrail for audit logging
-- Configure AWS Config for compliance monitoring
-- Secure your AWS resources with advanced security features
-- Understand security best practices for the Cloud-a-thon
+- Work with existing IAM roles in Learner Labs
+- Understand security monitoring with CloudTrail
+- Implement security best practices for the Cloud-a-thon
+- Navigate IAM within Learner Lab constraints
 
 ## Cost Awareness
 - **IAM**: Completely free
-- **CloudTrail**: Free tier includes 1 management event trail
-- **AWS Config**: $0.003 per configuration item (minimal cost)
+- **CloudTrail**: Pre-configured in Learner Labs
 - **CloudWatch**: Free tier includes basic monitoring
 - We'll use less than **$0.50** of your budget today
 - **Focus**: Security configuration, not expensive resources
 
 ## Lab Instructions
 
-### Part 1: IAM Fundamentals
+### Part 1: Understanding Learner Lab IAM Environment
 
-1. **Navigate to IAM Console**
-   - Search for "IAM" in AWS Console
-   - Explore the IAM dashboard
-   - Notice the security recommendations
+1. **Explore Existing Roles**
+   - Navigate to IAM Console
+   - Go to Roles
+   - Look for these pre-existing roles:
+     - `LabRole` - Used for Lambda and other services
+     - `EMR_EC2_DefaultRole` - For EC2 instances
+     - Any other existing roles
+   - Click on each role to understand their policies
 
-2. **Create Your First IAM User**
+2. **Document Available Roles**
+   ```bash
+   # On your EC2 instance or CloudShell
+   aws iam list-roles --query "Roles[?starts_with(RoleName, 'Lab') || starts_with(RoleName, 'EMR')].RoleName" --output table
+   ```
+
+### Part 2: IAM Users and Groups (Full Access)
+
+1. **Create Your First IAM User**
    - Go to Users → Create user
    - **User name**: `cloud-lab-developer`
    - **Provide user access to AWS Management Console**: ✓
-   - **Console password**: Custom password → `CloudLab2025!`
+   - **Console password**: Custom password → `CloudLab2025!Dev`
    - **Users must create a new password at next sign-in**: Uncheck
    - Next
 
-3. **Set User Permissions**
+2. **Create Developer Group**
    - **Permissions options**: Add user to group
    - Click "Create group"
    - **Group name**: `Developers`
    - **Attach permissions policies**: Search and select:
      - `AmazonEC2ReadOnlyAccess`
      - `AmazonS3ReadOnlyAccess`
+     - `AWSLambda_ReadOnlyAccess`
    - Create group
    - Select the Developers group
    - Next → Create user
+
+3. **Create Admin User**
+   - Create another user: `cloud-lab-admin`
+   - **Password**: `CloudLab2025!Admin`
+   - Create new group: `Administrators`
+   - Attach policy: `PowerUserAccess` (since AdministratorAccess may be restricted)
+   - Create user
 
 4. **Test User Access**
    - Copy the console sign-in URL
    - Open incognito/private browser window
    - Sign in as `cloud-lab-developer`
-   - Try to access EC2 and S3 (should work)
-   - Try to launch an instance (should fail)
+   - Try to:
+     - View EC2 instances (✓ should work)
+     - Launch an instance (✗ should fail)
+     - View S3 buckets (✓ should work)
+     - Create S3 bucket (✗ should fail)
 
-### Part 2: Advanced IAM Policies
+### Part 3: Custom IAM Policies (Full Access)
 
-1. **Create Custom Policy for Lambda Development**
-   - Go to Policies → Create policy
-   - **Service**: Lambda
-   - **Actions**: 
-     - List: All List actions
-     - Read: All Read actions
-     - Write: CreateFunction, UpdateFunctionCode, UpdateFunctionConfiguration
-   - **Resources**: All resources
-   - Next
-   - **Policy name**: `LambdaDeveloperPolicy`
-   - **Description**: `Custom policy for Lambda development`
-   - Create policy
-
-2. **Create Advanced S3 Policy**
-   - Create policy → JSON tab
-   - Replace with this policy:
+1. **Create S3 Bucket-Specific Policy**
+   - Policies → Create policy → JSON tab
    ```json
    {
      "Version": "2012-10-17",
      "Statement": [
        {
-         "Sid": "AllowListBuckets",
+         "Sid": "ListAllBuckets",
          "Effect": "Allow",
          "Action": "s3:ListAllMyBuckets",
          "Resource": "*"
        },
        {
-         "Sid": "AllowUserFolder",
+         "Sid": "AllowSpecificBucket",
          "Effect": "Allow",
          "Action": [
            "s3:GetObject",
@@ -95,94 +109,125 @@ By the end of this lab, you will be able to:
            "s3:ListBucket"
          ],
          "Resource": [
-           "arn:aws:s3:::cloud-lab-${aws:username}",
-           "arn:aws:s3:::cloud-lab-${aws:username}/*"
+           "arn:aws:s3:::cloudlab-*",
+           "arn:aws:s3:::cloudlab-*/*"
          ]
-       },
-       {
-         "Sid": "DenyDeleteBucket",
-         "Effect": "Deny",
-         "Action": "s3:DeleteBucket",
-         "Resource": "*"
        }
      ]
    }
    ```
-   - **Policy name**: `S3UserFolderPolicy`
+   - **Policy name**: `CloudLabS3Policy`
+   - **Description**: `Allow access to cloudlab-* buckets only`
    - Create policy
 
-3. **Create a DevOps Group**
-   - Groups → Create group
-   - **Group name**: `DevOps`
-   - **Attach permissions policies**:
-     - `AmazonEC2FullAccess`
-     - `AmazonS3FullAccess`
-     - `AWSLambdaFullAccess`
-     - `CloudWatchReadOnlyAccess`
-     - Your custom `LambdaDeveloperPolicy`
-   - Create group
-
-### Part 3: IAM Roles and Cross-Service Access
-
-1. **Create Lambda Execution Role**
-   - Go to Roles → Create role
-   - **Trusted entity type**: AWS service
+2. **Create Lambda Developer Policy**
+   - Create policy → Visual editor
    - **Service**: Lambda
-   - Next
-   - **Permissions policies**: 
-     - `AWSLambdaBasicExecutionRole`
-     - `AmazonS3ReadOnlyAccess`
-     - `AmazonRDSReadOnlyAccess`
-   - Next
-   - **Role name**: `CloudLabLambdaRole`
-   - **Description**: `Role for Lambda functions in Cloud Lab`
-   - Create role
+   - **Actions**:
+     - List: All List actions
+     - Read: All Read actions  
+     - Write: InvokeFunction, UpdateFunctionCode
+   - **Resources**: All resources
+   - **Policy name**: `CloudLabLambdaDeveloper`
+   - Create policy
 
-2. **Create EC2 Instance Role**
-   - Create role
-   - **Service**: EC2
-   - **Permissions policies**:
-     - `AmazonS3ReadOnlyAccess`
-     - `CloudWatchAgentServerPolicy`
-   - **Role name**: `CloudLabEC2Role`
-   - Create role
+3. **Create EC2 Start/Stop Policy**
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": [
+           "ec2:DescribeInstances",
+           "ec2:DescribeInstanceStatus"
+         ],
+         "Resource": "*"
+       },
+       {
+         "Effect": "Allow",
+         "Action": [
+           "ec2:StartInstances",
+           "ec2:StopInstances",
+           "ec2:RebootInstances"
+         ],
+         "Resource": "arn:aws:ec2:*:*:instance/*",
+         "Condition": {
+           "StringEquals": {
+             "aws:ResourceTag/Environment": "Development"
+           }
+         }
+       }
+     ]
+   }
+   ```
+   - **Policy name**: `EC2StartStopDev`
+   - Create policy
 
-3. **Create Cross-Account Assume Role (Simulation)**
-   - Create role
-   - **Trusted entity type**: AWS account
-   - **Account ID**: Your current account ID
-   - **Require MFA**: ✓
-   - Next
-   - **Permissions**: `ReadOnlyAccess`
-   - **Role name**: `CloudLabAuditorRole`
-   - Create role
+4. **Create CloudWatch Logs Policy**
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": [
+           "logs:CreateLogGroup",
+           "logs:CreateLogStream",
+           "logs:PutLogEvents",
+           "logs:DescribeLogStreams",
+           "logs:DescribeLogGroups"
+         ],
+         "Resource": "arn:aws:logs:*:*:log-group:/aws/lambda/*"
+       }
+     ]
+   }
+   ```
+   - **Policy name**: `CloudWatchLogsLambda`
+   - Create policy
 
-4. **Test Role Assumption**
+### Part 4: Working with Existing Roles
+
+1. **Explore LabRole Permissions**
+   - Go to Roles → Search for `LabRole`
+   - Click on LabRole
+   - Review attached policies
+   - Note the trust relationships (Lambda, etc.)
+
+2. **Using LabRole with Lambda**
+   - When creating Lambda functions, select `LabRole` as the execution role
+   - This role has pre-configured permissions for:
+     - CloudWatch Logs
+     - VPC access
+     - Basic Lambda execution
+
+3. **Document Role Capabilities**
    ```bash
-   # We'll test this later with AWS CLI
+   # Get LabRole policies
+   aws iam list-attached-role-policies --role-name LabRole
+   
+   # Get inline policies if any
+   aws iam list-role-policies --role-name LabRole
+   
+   # Save this information for your Cloud-a-thon project
    ```
 
-### Part 4: Multi-Factor Authentication (MFA)
+### Part 5: Multi-Factor Authentication (MFA)
 
-1. **Enable MFA for Root Account**
-   - Go to Account settings (top right menu)
-   - Security credentials
+1. **Enable Virtual MFA for IAM User**
+   - Sign in as `cloud-lab-admin`
+   - Go to Security credentials (top right menu)
    - Multi-factor authentication (MFA)
    - Assign MFA device
-   - **Device name**: `root-mfa`
+   - **Device name**: `admin-virtual-mfa`
    - **MFA device**: Authenticator app
-   - Follow setup instructions with Google Authenticator or similar app
-
-2. **Enable MFA for IAM User**
-   - Go to Users → `cloud-lab-developer`
-   - Security credentials tab
-   - Multi-factor authentication (MFA) → Assign MFA device
-   - **Device name**: `developer-mfa`
-   - **MFA device**: Authenticator app
+   - Use Google Authenticator, Authy, or Microsoft Authenticator
+   - Scan QR code and enter two consecutive codes
    - Complete setup
 
-3. **Create MFA-Required Policy**
-   - Policies → Create policy → JSON
+2. **Create MFA-Enforcement Policy**
+   - Sign back in as your main account
+   - IAM → Policies → Create policy → JSON
    ```json
    {
      "Version": "2012-10-17",
@@ -192,18 +237,10 @@ By the end of this lab, you will be able to:
          "Effect": "Allow",
          "Action": [
            "iam:GetAccountPasswordPolicy",
-           "iam:ListVirtualMFADevices"
+           "iam:ListVirtualMFADevices",
+           "iam:ListUsers"
          ],
          "Resource": "*"
-       },
-       {
-         "Sid": "AllowManageOwnPasswords",
-         "Effect": "Allow",
-         "Action": [
-           "iam:ChangePassword",
-           "iam:GetUser"
-         ],
-         "Resource": "arn:aws:iam::*:user/${aws:username}"
        },
        {
          "Sid": "AllowManageOwnMFA",
@@ -212,8 +249,9 @@ By the end of this lab, you will be able to:
            "iam:CreateVirtualMFADevice",
            "iam:DeleteVirtualMFADevice",
            "iam:EnableMFADevice",
+           "iam:ResyncMFADevice",
            "iam:ListMFADevices",
-           "iam:ResyncMFADevice"
+           "iam:DeactivateMFADevice"
          ],
          "Resource": [
            "arn:aws:iam::*:mfa/${aws:username}",
@@ -221,7 +259,7 @@ By the end of this lab, you will be able to:
          ]
        },
        {
-         "Sid": "DenyAllExceptUnlessSignedInWithMFA",
+         "Sid": "DenyAllExceptListedIfNoMFA",
          "Effect": "Deny",
          "NotAction": [
            "iam:CreateVirtualMFADevice",
@@ -230,7 +268,8 @@ By the end of this lab, you will be able to:
            "iam:ListMFADevices",
            "iam:ListVirtualMFADevices",
            "iam:ResyncMFADevice",
-           "sts:GetSessionToken"
+           "sts:GetSessionToken",
+           "iam:ListUsers"
          ],
          "Resource": "*",
          "Condition": {
@@ -242,402 +281,377 @@ By the end of this lab, you will be able to:
      ]
    }
    ```
-   - **Policy name**: `RequireMFAPolicy`
-   - Create policy
+   - **Policy name**: `EnforceMFAPolicy`
+   - Attach to Administrators group
 
-### Part 5: AWS CLI and Programmatic Access
+### Part 6: AWS CLI Configuration
 
-1. **Create Access Keys for Developer User**
-   - Users → `cloud-lab-developer`
+1. **Create Access Keys**
+   - IAM → Users → `cloud-lab-developer`
    - Security credentials tab
    - Access keys → Create access key
    - **Use case**: Command Line Interface (CLI)
-   - Check acknowledgment box
-   - Next → Create access key
-   - **Download .csv file** or copy keys securely
+   - Download .csv file
 
 2. **Configure AWS CLI on EC2**
    ```bash
-   # Connect to your EC2 instance
+   # SSH to your EC2 instance
    ssh -i your-key.pem ec2-user@[your-ec2-ip]
    
    # Configure AWS CLI
    aws configure
-   # Access Key ID: [from step above]
-   # Secret Access Key: [from step above]
+   # Enter your access key ID
+   # Enter your secret access key
    # Default region: us-east-1
    # Default output format: json
    
-   # Test basic access
+   # Test access
    aws sts get-caller-identity
    aws s3 ls
-   aws ec2 describe-instances --region us-east-1
+   aws ec2 describe-instances
    ```
 
-3. **Test Role Assumption**
+3. **Create Named Profiles**
    ```bash
-   # Assume the Lambda execution role
-   aws sts assume-role \
-     --role-arn arn:aws:iam::ACCOUNT-ID:role/CloudLabLambdaRole \
-     --role-session-name test-session
+   # Configure multiple profiles
+   aws configure --profile developer
+   # Enter cloud-lab-developer credentials
    
-   # If successful, you'll get temporary credentials
-   # Export them and test access
-   export AWS_ACCESS_KEY_ID=[temporary-key]
-   export AWS_SECRET_ACCESS_KEY=[temporary-secret]
-   export AWS_SESSION_TOKEN=[session-token]
+   aws configure --profile admin
+   # Enter cloud-lab-admin credentials
    
-   # Test with new credentials
-   aws sts get-caller-identity
+   # Test different profiles
+   aws s3 ls --profile developer
+   aws ec2 describe-instances --profile admin
    ```
 
-### Part 6: CloudTrail Audit Logging
+### Part 7: Security Monitoring with CloudTrail
 
-1. **Create CloudTrail**
-   - Search for "CloudTrail" in console
-   - Create trail
-   - **Trail name**: `CloudLabAuditTrail`
-   - **Apply trail to all regions**: ✓
-   - **Enable CloudWatch Logs**: ✓
-   - **Log group**: New → `CloudTrail/CloudLab`
-   - **IAM role**: New → `CloudTrailRole`
-   - **S3 bucket**: Create new bucket → `cloudtrail-logs-[your-name]-[random]`
-   - Next → Create trail
+1. **Check CloudTrail Status**
+   - CloudTrail may be pre-configured in Learner Labs
+   - Go to CloudTrail console
+   - Look for existing trails
+   - If available, note the S3 bucket location
 
-2. **Generate Some Activity**
+2. **View Event History**
+   - CloudTrail → Event history
+   - Filter by:
+     - Event name: `CreateUser`
+     - User name: Your IAM user
+     - Time range: Last hour
+   - Click events to see details
+
+3. **Monitor Your Activities**
    ```bash
-   # Perform various actions to generate logs
+   # Generate some activity
    aws s3 ls
    aws ec2 describe-instances
    aws iam list-users
-   aws lambda list-functions
+   
+   # Wait 5-10 minutes, then check CloudTrail
    ```
 
-3. **View CloudTrail Logs**
-   - CloudTrail → Event history
-   - Filter by time range and user
-   - Click on events to see detailed JSON
-   - Go to CloudWatch → Log groups → CloudTrail/CloudLab
-   - View log streams and search for specific events
+### Part 8: Lambda Security Function
 
-### Part 7: AWS Config for Compliance
-
-1. **Set Up AWS Config**
-   - Search for "Config" in console
-   - Get started
-   - **Record all resources**: ✓
-   - **Include global resource types**: ✓
-   - **S3 bucket**: Create new → `aws-config-[your-name]-[random]`
-   - **SNS topic**: Create new → `config-topic`
-   - **IAM role**: Create new → `aws-config-role`
-   - Next → Confirm
-
-2. **Add Compliance Rules**
-   - Rules → Add rule
-   - Search for and add these rules:
-     - `s3-bucket-public-read-prohibited`
-     - `ec2-security-group-attached-to-eni`
-     - `iam-password-policy`
-     - `root-access-key-check`
-   - Configure each rule with default settings
-
-3. **Check Compliance Status**
-   - Wait 10-15 minutes for initial evaluation
-   - View compliance dashboard
-   - Click on non-compliant resources to see details
-   - Remediate issues if any
-
-### Part 8: Security Best Practices Implementation
-
-1. **Create Security Monitoring Lambda**
-   - Go to Lambda → Create function
+1. **Create Security Monitor Lambda**
+   - Lambda → Create function
    - **Function name**: `security-monitor`
    - **Runtime**: Python 3.11
-   - **Execution role**: Use existing role → `CloudLabLambdaRole`
+   - **Execution role**: Use existing role → `LabRole`
    
    ```python
    import json
    import boto3
    import logging
-   from datetime import datetime
+   from datetime import datetime, timedelta
    
    logger = logging.getLogger()
    logger.setLevel(logging.INFO)
    
    def lambda_handler(event, context):
        """
-       Security monitoring function that checks for:
-       - Root account usage
-       - Failed login attempts
-       - Unusual API calls
+       Security monitoring function for Learner Lab environment
        """
        
-       # Initialize clients
        iam = boto3.client('iam')
-       cloudtrail = boto3.client('cloudtrail')
+       cloudwatch = boto3.client('cloudwatch')
        
-       security_alerts = []
+       security_report = {
+           'timestamp': datetime.utcnow().isoformat(),
+           'checks_performed': [],
+           'findings': [],
+           'recommendations': []
+       }
        
        try:
-           # Check for root account usage
-           response = cloudtrail.lookup_events(
-               LookupAttributes=[
-                   {
-                       'AttributeKey': 'Username',
-                       'AttributeValue': 'root'
-                   }
-               ],
-               MaxItems=10
-           )
-           
-           root_events = response.get('Events', [])
-           if root_events:
-               security_alerts.append({
-                   'type': 'ROOT_ACCOUNT_USAGE',
-                   'severity': 'HIGH',
-                   'message': f'Root account used {len(root_events)} times recently',
-                   'events': len(root_events)
-               })
-           
-           # Check for users without MFA
+           # Check 1: List users without MFA
            users = iam.list_users()
            users_without_mfa = []
            
            for user in users['Users']:
                username = user['UserName']
-               mfa_devices = iam.list_mfa_devices(UserName=username)
-               
-               if not mfa_devices['MFADevices']:
-                   users_without_mfa.append(username)
+               try:
+                   mfa_devices = iam.list_mfa_devices(UserName=username)
+                   if not mfa_devices['MFADevices']:
+                       users_without_mfa.append(username)
+               except:
+                   pass  # Skip if no permission
            
+           security_report['checks_performed'].append('MFA Check')
            if users_without_mfa:
-               security_alerts.append({
-                   'type': 'USERS_WITHOUT_MFA',
+               security_report['findings'].append({
                    'severity': 'MEDIUM',
-                   'message': f'{len(users_without_mfa)} users without MFA',
-                   'users': users_without_mfa
+                   'finding': f'Users without MFA: {", ".join(users_without_mfa)}'
                })
+               security_report['recommendations'].append(
+                   'Enable MFA for all users with console access'
+               )
            
-           # Check for overly permissive policies
-           policies = iam.list_policies(Scope='Local', MaxItems=50)
-           risky_policies = []
+           # Check 2: List access keys older than 90 days
+           old_keys = []
+           for user in users['Users']:
+               username = user['UserName']
+               try:
+                   keys = iam.list_access_keys(UserName=username)
+                   for key in keys['AccessKeyMetadata']:
+                       age = datetime.utcnow().replace(tzinfo=None) - key['CreateDate'].replace(tzinfo=None)
+                       if age.days > 90:
+                           old_keys.append({
+                               'user': username,
+                               'key_id': key['AccessKeyId'],
+                               'age_days': age.days
+                           })
+               except:
+                   pass  # Skip if no permission
            
-           for policy in policies['Policies']:
-               policy_name = policy['PolicyName']
-               if 'FullAccess' in policy_name or '*' in policy_name:
-                   risky_policies.append(policy_name)
-           
-           if risky_policies:
-               security_alerts.append({
-                   'type': 'RISKY_POLICIES',
-                   'severity': 'MEDIUM',
-                   'message': f'{len(risky_policies)} potentially risky policies found',
-                   'policies': risky_policies
+           security_report['checks_performed'].append('Access Key Age Check')
+           if old_keys:
+               security_report['findings'].append({
+                   'severity': 'LOW',
+                   'finding': f'{len(old_keys)} access keys older than 90 days'
                })
+               security_report['recommendations'].append(
+                   'Rotate access keys older than 90 days'
+               )
            
-           # Create security report
-           security_report = {
-               'timestamp': datetime.utcnow().isoformat(),
-               'alert_count': len(security_alerts),
-               'alerts': security_alerts,
-               'recommendations': [
-                   'Enable MFA for all users',
-                   'Avoid using root account for daily tasks',
-                   'Follow principle of least privilege',
-                   'Regularly review and rotate access keys',
-                   'Enable CloudTrail in all regions'
-               ]
-           }
+           # Check 3: Count custom policies
+           try:
+               policies = iam.list_policies(Scope='Local')
+               policy_count = len(policies['Policies'])
+               security_report['checks_performed'].append('Custom Policy Count')
+               security_report['findings'].append({
+                   'severity': 'INFO',
+                   'finding': f'{policy_count} custom policies found'
+               })
+           except:
+               pass
            
-           logger.info(f"Security scan completed. Found {len(security_alerts)} alerts.")
+           # Check 4: List groups without policies
+           try:
+               groups = iam.list_groups()
+               empty_groups = []
+               for group in groups['Groups']:
+                   group_name = group['GroupName']
+                   attached = iam.list_attached_group_policies(GroupName=group_name)
+                   if not attached['AttachedPolicies']:
+                       empty_groups.append(group_name)
+               
+               if empty_groups:
+                   security_report['findings'].append({
+                       'severity': 'LOW',
+                       'finding': f'Groups without policies: {", ".join(empty_groups)}'
+                   })
+           except:
+               pass
+           
+           # Add general recommendations
+           security_report['recommendations'].extend([
+               'Follow principle of least privilege',
+               'Regularly review IAM permissions',
+               'Use IAM roles for EC2 instances instead of access keys',
+               'Enable CloudTrail for audit logging',
+               'Tag resources for better organization'
+           ])
+           
+           logger.info(f"Security scan completed: {len(security_report['findings'])} findings")
            
            return {
                'statusCode': 200,
-               'body': json.dumps(security_report, indent=2)
+               'body': json.dumps(security_report, indent=2, default=str)
            }
            
        except Exception as e:
-           logger.error(f"Security monitoring error: {str(e)}")
+           logger.error(f"Security scan error: {str(e)}")
            return {
                'statusCode': 500,
                'body': json.dumps({'error': str(e)})
            }
    ```
 
-2. **Test Security Monitor**
+2. **Test the Security Monitor**
    - Deploy the function
-   - Test with empty event
-   - Review the security report output
+   - Create test event (empty JSON: `{}`)
+   - Run test
+   - Review the security report
 
-3. **Create IAM Policy Review Script**
-   ```bash
-   # Create script on EC2
-   cat > security_review.sh << 'EOF'
-   #!/bin/bash
-   echo "=== AWS Security Review ==="
-   echo "Date: $(date)"
-   echo
+### Part 9: Resource Tagging Strategy
+
+Since we can't create custom roles, we'll use tags for organization:
+
+1. **Create Tagging Policy Document**
+   ```markdown
+   # Cloud Lab Tagging Strategy
    
-   echo "1. IAM Users:"
-   aws iam list-users --query 'Users[*].[UserName,CreateDate]' --output table
-   echo
+   ## Required Tags for All Resources:
+   - **Environment**: Development | Testing | Production
+   - **Project**: CloudLab | CloudAThon
+   - **Owner**: [your-name]
+   - **CostCenter**: Education
+   - **CreatedBy**: [IAM-username]
+   - **CreatedDate**: YYYY-MM-DD
    
-   echo "2. Users without MFA:"
-   for user in $(aws iam list-users --query 'Users[*].UserName' --output text); do
-       mfa_count=$(aws iam list-mfa-devices --user-name $user --query 'length(MFADevices)')
-       if [ "$mfa_count" -eq 0 ]; then
-           echo "  - $user (NO MFA)"
-       fi
-   done
-   echo
-   
-   echo "3. Access Keys older than 90 days:"
-   aws iam list-access-keys --query 'AccessKeyMetadata[?CreateDate<`2024-06-01`].[UserName,AccessKeyId,CreateDate]' --output table
-   echo
-   
-   echo "4. Overly permissive policies:"
-   aws iam list-policies --scope Local --query 'Policies[?contains(PolicyName, `FullAccess`) || contains(PolicyName, `Admin`)].[PolicyName,CreateDate]' --output table
-   echo
-   
-   echo "5. Recent CloudTrail events:"
-   aws logs describe-log-groups --log-group-name-prefix "CloudTrail" --query 'logGroups[*].logGroupName' --output table
-   echo
-   
-   echo "=== Security Review Complete ==="
-   EOF
-   
-   chmod +x security_review.sh
-   ./security_review.sh
+   ## Example Implementation:
+   - EC2 Instances: Tag with Environment=Development
+   - S3 Buckets: Tag with Project=CloudLab
+   - Lambda Functions: Tag with Owner=[your-name]
    ```
 
-### Part 9: Secure Application Architecture
-
-1. **Design Secure Multi-Service Architecture**
-   - Create architecture diagram for your Cloud-a-thon project
-   - Plan IAM roles for each service
-   - Design least-privilege access policies
-
-2. **Create Application-Specific Roles**
+2. **Implement Tags on Resources**
    ```bash
-   # Example: Create role for web application
-   aws iam create-role \
-     --role-name WebAppRole \
-     --assume-role-policy-document '{
-       "Version": "2012-10-17",
-       "Statement": [
-         {
-           "Effect": "Allow",
-           "Principal": {"Service": "ec2.amazonaws.com"},
-           "Action": "sts:AssumeRole"
-         }
-       ]
-     }'
+   # Tag an EC2 instance
+   aws ec2 create-tags \
+     --resources i-xxxxx \
+     --tags Key=Environment,Value=Development \
+            Key=Project,Value=CloudLab \
+            Key=Owner,Value=YourName
    
-   # Attach minimal required policies
-   aws iam attach-role-policy \
-     --role-name WebAppRole \
-     --policy-arn arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+   # Tag an S3 bucket
+   aws s3api put-bucket-tagging \
+     --bucket your-bucket-name \
+     --tagging 'TagSet=[{Key=Environment,Value=Development},{Key=Project,Value=CloudLab}]'
    ```
 
 ### Part 10: Cloud-a-thon Security Preparation
 
-1. **Create Team Access Policies**
-   - Design policies for different team roles:
-     - **Frontend Developer**: S3, CloudFront access
-     - **Backend Developer**: Lambda, API Gateway, RDS access
-     - **DevOps Engineer**: EC2, VPC, CloudWatch access
-     - **Team Lead**: Read access to all resources
+1. **Team Access Strategy (Without Custom Roles)**
+   
+   Create groups for your team:
+   - **CloudAthonDevelopers**: S3, Lambda, DynamoDB read/write
+   - **CloudAthonAdmins**: PowerUserAccess
+   - **CloudAthonReadOnly**: ReadOnlyAccess
 
-2. **Security Checklist for Cloud-a-thon**
-   ```
-   ✓ Enable MFA for all team members
-   ✓ Use IAM roles instead of access keys where possible
-   ✓ Follow least privilege principle
-   ✓ Enable CloudTrail for audit logging
-   ✓ Configure resource-based policies for S3, Lambda
-   ✓ Use VPC for network isolation
-   ✓ Encrypt data at rest and in transit
-   ✓ Set up billing alerts to monitor costs
-   ✓ Plan resource tagging strategy
-   ✓ Document emergency access procedures
-   ```
-
-3. **Create Emergency Access Procedure**
+2. **Security Best Practices Checklist**
    ```markdown
-   # Emergency Access Procedure
+   ## Cloud-a-thon Security Checklist
    
-   ## Scenario: Locked out of AWS account
-   1. Contact root account owner
-   2. Use root account MFA to access console
-   3. Check CloudTrail for unauthorized access
-   4. Reset compromised credentials
-   5. Review and update security policies
+   ### IAM Setup
+   ✓ Create separate IAM users for each team member
+   ✓ Organize users into groups based on responsibilities
+   ✓ Apply least-privilege principle using AWS managed policies
+   ✓ Enable MFA for all users with console access
+   ✓ Document which existing roles to use (LabRole for Lambda)
    
-   ## Scenario: Suspected security breach
-   1. Immediately disable suspected compromised credentials
-   2. Check CloudTrail for unusual activity
-   3. Review AWS Config compliance status
-   4. Run security monitoring Lambda function
-   5. Document incident and notify team
+   ### Access Management
+   ✓ Use access keys only when necessary
+   ✓ Rotate access keys before the hackathon
+   ✓ Never commit credentials to version control
+   ✓ Use AWS Systems Manager Parameter Store for secrets
+   
+   ### Resource Organization
+   ✓ Implement consistent tagging strategy
+   ✓ Use CloudFormation or SAM for infrastructure as code
+   ✓ Document all resources created during the event
+   
+   ### Monitoring
+   ✓ Check CloudTrail event history regularly
+   ✓ Set up CloudWatch alarms for critical metrics
+   ✓ Monitor AWS Cost Explorer daily
+   
+   ### Emergency Procedures
+   ✓ Document how to revoke compromised credentials
+   ✓ Know how to contact AWS Support (if available)
+   ✓ Have rollback plan for critical changes
+   ```
+
+3. **Create Helper Scripts**
+   ```bash
+   # Create setup script for team members
+   cat > team_setup.sh << 'EOF'
+   #!/bin/bash
+   
+   # Cloud-a-thon Team Setup Script
+   echo "Setting up Cloud-a-thon environment..."
+   
+   # Configure AWS CLI
+   echo "Configuring AWS CLI..."
+   aws configure
+   
+   # Test access
+   echo "Testing AWS access..."
+   aws sts get-caller-identity
+   
+   # List available resources
+   echo "Available Lambda execution roles:"
+   aws iam list-roles --query "Roles[?contains(RoleName, 'Lab')].RoleName"
+   
+   echo "S3 buckets:"
+   aws s3 ls
+   
+   echo "Lambda functions:"
+   aws lambda list-functions --query "Functions[].FunctionName"
+   
+   echo "Setup complete!"
+   EOF
+   
+   chmod +x team_setup.sh
    ```
 
 ## Cleanup
 
-**Cost-conscious cleanup**:
-1. **Delete CloudTrail trail** (to stop S3 storage costs)
-2. **Delete CloudTrail S3 bucket contents**
-3. **Disable AWS Config** (to stop configuration item costs)
-4. **Keep IAM resources** (they're free)
-5. **Delete any test Lambda functions**
-6. **Release Elastic IPs if any were created**
-
-**Keep for Cloud-a-thon**: IAM users, groups, roles, and policies you'll need next week!
-
+**Minimal cleanup needed**:
+1. **Disable unused IAM users** (don't delete - you might need them)
+2. **Remove access keys** you won't use for Cloud-a-thon
+3. **Keep all policies and groups** for next week
+4. **Document everything** for your team
 
 ## Key Takeaways
 
-- **IAM** is the foundation of AWS security
-- **Principle of least privilege** minimizes security risks
-- **Roles** are preferred over access keys for AWS resources
-- **MFA** significantly improves account security
-- **CloudTrail** provides comprehensive audit logging
-- **AWS Config** enables compliance monitoring and reporting
-- **Automation** is key to maintaining security at scale
-- **Defense in depth** uses multiple security layers
+- **AWS Learner Labs** have IAM limitations but still allow comprehensive security practice
+- **Work with existing roles** like LabRole instead of creating new ones
+- **Focus on users, groups, and policies** which have full access
+- **MFA** can be enabled for IAM users (not root)
+- **Tagging** becomes crucial for resource organization without custom roles
+- **Documentation** is essential when working with constraints
+- **Security principles** remain the same regardless of platform limitations
 
 ## Additional Resources
 
+- [AWS Learner Lab FAQ](https://aws.amazon.com/training/learner-lab/)
 - [IAM Best Practices](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html)
-- [AWS Security Best Practices](https://aws.amazon.com/security/security-learning/)
-- [CloudTrail User Guide](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/)
-- [AWS Config Developer Guide](https://docs.aws.amazon.com/config/latest/developerguide/)
-- [AWS Well-Architected Security Pillar](https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/)
+- [Working with AWS Managed Policies](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_managed-vs-inline.html)
+- [AWS Tagging Best Practices](https://docs.aws.amazon.com/whitepapers/latest/tagging-best-practices/tagging-best-practices.html)
 
 ## Troubleshooting
 
-**Access denied errors after creating policies?**
-- Wait 1-2 minutes for IAM changes to propagate
-- Check policy syntax and resource ARNs
-- Verify the user/role has the policy attached
+**Cannot create role error?**
+- Use existing LabRole for Lambda functions
+- Use IAM instance profiles that already exist
+- Focus on policy creation instead
 
-**MFA not working?**
+**Cannot modify trust relationships?**
+- Work with the existing trust relationships
+- Document what services can assume each role
+- Plan your architecture around available roles
+
+**MFA setup issues?**
 - Ensure time is synchronized on your device
-- Try generating a new code
-- Check that the MFA device is properly activated
+- Try using a different authenticator app
+- MFA can only be set up for IAM users, not root
 
-**CloudTrail events not appearing?**
-- Wait 15-20 minutes for events to appear
-- Check that the trail is enabled and in the correct region
-- Verify S3 bucket permissions for CloudTrail
-
-**AWS CLI assume-role failing?**
-- Check that your user has sts:AssumeRole permission
-- Verify the role trust policy includes your user/role
-- Ensure MFA requirements are met if configured
-
-**Config rules showing non-compliant?**
-- Some rules may take time to evaluate
-- Check rule parameters and scope
-- Review resource configuration for compliance requirements
+**Access denied even with correct policies?**
+- Check if Learner Lab has additional restrictions
+- Try using AWS managed policies instead of custom ones
+- Some API calls may be blocked at the account level
 
 ---
+
