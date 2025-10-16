@@ -488,25 +488,9 @@ VPC: 10.0.0.0/16 (65,536 IP addresses)
    ip route show
    ```
 
-## Challenge Tasks
-
-### Easy Challenge
-- Create a second web server in the other availability zone
-- Set up a security group that only allows traffic between specific tiers
-- Test connectivity between different subnets
-
-### Medium Challenge
-- Set up an Application Load Balancer across both public subnets
+## Challenge
 - Create a bastion host for secure access to private instances
-- Implement VPC peering with another VPC
-- Set up VPC endpoints for additional AWS services
 
-### Hard Challenge
-- Design and implement a multi-region VPC architecture
-- Set up Site-to-Site VPN connection (simulated)
-- Create custom route tables for micro-segmentation
-- Implement AWS Transit Gateway architecture
-- Set up cross-region VPC peering
 
 ## Cleanup
 
