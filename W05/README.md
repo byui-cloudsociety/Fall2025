@@ -2,11 +2,14 @@
 
 Welcome to the world of serverless computing! This week we'll explore AWS Lambda and learn how to run code without managing servers.
 
+## ⚠️ AWS Learner Lab Note
+In AWS Learner Labs, you **cannot create new IAM roles**. For all Lambda functions in this lab, you must use the existing **`LabRole`** as the execution role. This role has been pre-configured with the necessary permissions for Lambda execution, CloudWatch Logs, and basic AWS service access.
+
 ## Learning Objectives
 
 By the end of this lab, you will be able to:
 
-- Create and deploy Lambda functions
+- Create and deploy Lambda functions using existing IAM roles
 - Understand serverless computing concepts
 - Trigger Lambda functions with various event sources
 - Connect Lambda with S3 and other AWS services
@@ -32,15 +35,18 @@ By the end of this lab, you will be able to:
 2. **Create Hello World Function**
    - Choose "Author from scratch"
    - **Function name**: `hello-world-[your-name]`
-   - **Runtime**: Python 3.11
+   - **Runtime**: Python 3.13
    - **Architecture**: x86_64
-   - Leave other settings default
+   - **Permissions**: Expand "Change default execution role"
+     - **Execution role**: Use an existing role
+     - **Existing role**: Select `LabRole`
    - Click "Create function"
 
 3. **Explore the Lambda Console**
    - Notice the code editor with default code
    - See the "Test" button and configuration tabs
    - Explore the "Monitor" tab (CloudWatch integration)
+   - Check the "Configuration" tab → "Permissions" to see LabRole is assigned
 
 4. **Test Your Function**
    - Click "Test" button
@@ -55,7 +61,8 @@ By the end of this lab, you will be able to:
 
 1. **Create Calculator Function**
    - Create new function: `calculator-[your-name]`
-   - Runtime: Python 3.11
+   - **Runtime**: Python 3.13
+   - **Execution role**: Use an existing role → Select `LabRole`
 
 2. **Replace Default Code**
 
@@ -150,10 +157,16 @@ By the end of this lab, you will be able to:
 
 1. **Create Image Processor Function**
    - Function name: `image-processor-[your-name]`
-   - Runtime: Python 3.11
-   - **Timeout**: 30 seconds (Configuration → General configuration)
+   - **Runtime**: Python 3.13
+   - **Execution role**: Use an existing role → Select `LabRole`
+   - Click "Create function"
 
-2. **Add the Code**
+2. **Configure Function Settings**
+   - Go to Configuration → General configuration → Edit
+   - **Timeout**: 30 seconds
+   - Click "Save"
+
+3. **Add the Code**
 
    ```python
    import json
@@ -222,13 +235,12 @@ By the end of this lab, you will be able to:
            }
    ```
 
-3. **Add S3 Permissions**
-   - Go to Configuration → Permissions
-   - Click on the execution role (it will open IAM in a new tab)
-   - Click "Add permissions" → "Attach policies"
-   - Search for and attach: `AmazonS3ReadOnlyAccess`
+4. **Verify LabRole Permissions**
+   - The `LabRole` already includes S3 read permissions
+   - To verify: Go to Configuration → Permissions → Click on the role name
+   - You should see policies that allow S3 access
 
-4. **Connect S3 Bucket to Lambda**
+5. **Connect S3 Bucket to Lambda**
    - Go to your S3 bucket from Week 04
    - Click "Properties" tab
    - Scroll to "Event notifications"
@@ -237,9 +249,9 @@ By the end of this lab, you will be able to:
      - **Event types**: Check "All object create events"
      - **Destination**: Lambda function
      - **Lambda function**: Select your `image-processor` function
-   - Save
+   - Click "Save changes"
 
-5. **Test the Trigger**
+6. **Test the Trigger**
    - Upload a new file to your S3 bucket (any file type)
    - Go back to Lambda console
    - Check "Monitor" tab → "View CloudWatch logs"
@@ -249,7 +261,8 @@ By the end of this lab, you will be able to:
 
 1. **Create URL Shortener Function**
    - Function name: `url-shortener-[your-name]`
-   - Runtime: Python 3.11
+   - **Runtime**: Python 3.13
+   - **Execution role**: Use an existing role → Select `LabRole`
 
 2. **Add the Code**
 
@@ -257,8 +270,6 @@ By the end of this lab, you will be able to:
    import json
    import string
    import random
-   import boto3
-   from datetime import datetime, timedelta
 
    # Simple in-memory storage (in production, use DynamoDB)
    url_database = {}
@@ -295,7 +306,7 @@ By the end of this lab, you will be able to:
                # Store in database
                url_database[short_code] = {
                    'original_url': original_url,
-                   'created_at': datetime.utcnow().isoformat(),
+                   'created_at': context.request_time_epoch if hasattr(context, 'request_time_epoch') else 'N/A',
                    'clicks': 0
                }
                
@@ -392,6 +403,8 @@ By the end of this lab, you will be able to:
    }
    ```
 
+   **Note**: The in-memory storage will reset when the function is redeployed or after periods of inactivity. In a production environment, you would use DynamoDB for persistent storage.
+
 ### Part 5: Lambda Performance and Monitoring
 
 1. **Explore CloudWatch Metrics**
@@ -412,6 +425,19 @@ By the end of this lab, you will be able to:
    - Run your calculator function multiple times with different inputs
    - Notice "cold start" vs "warm start" execution times
    - Try increasing memory allocation (Configuration → General configuration)
+   - **Note**: Increasing memory also increases CPU proportionally
+
+4. **Understanding Cold Starts**
+   ```
+   Cold Start: First invocation or after idle period
+   - Lambda initializes execution environment
+   - Loads your code
+   - Typically 100-1000ms slower
+   
+   Warm Start: Subsequent invocations
+   - Reuses existing execution environment
+   - Much faster response times
+   ```
 
 ### Part 6: Connect Lambda with Your Static Website
 
@@ -446,7 +472,7 @@ By the end of this lab, you will be able to:
            const operation = document.getElementById('operation').value;
            
            // In a real application, you'd call your Lambda function via API Gateway
-           // For now, we'll simulate the calculation
+           // For now, we'll simulate the calculation client-side
            let result;
            const n1 = parseFloat(num1);
            const n2 = parseFloat(num2);
@@ -462,7 +488,7 @@ By the end of this lab, you will be able to:
            
            document.getElementById('result').innerHTML = 
                `<h3>Result: ${result}</h3>
-                <p><em>This calculation was simulated in the browser. In Week 6, we'll learn to connect this to our actual Lambda function via API Gateway!</em></p>`;
+                <p><em>Note: This calculation is simulated in the browser. To connect to your actual Lambda function, you would need to set up API Gateway, which we'll explore in future labs!</em></p>`;
        }
        </script>
    </section>
@@ -513,27 +539,39 @@ By the end of this lab, you will be able to:
    - Upload the updated HTML and CSS files to your S3 bucket
    - Visit your website to see the new calculator section
 
-## Challenge
+## Challenge Tasks
 
-- Build a serverless contact form that sends emails via SES
+Try these advanced exercises to deepen your understanding:
+
+1. **Environment Variables**: Add environment variables to your Lambda function (Configuration → Environment variables) and access them in your code using `os.environ['VARIABLE_NAME']`
+
+2. **Concurrent Executions**: Test how Lambda handles multiple simultaneous invocations by creating a function that sleeps for 10 seconds and invoking it multiple times
+
+3. **Error Handling**: Modify your calculator to handle more edge cases and return user-friendly error messages
+
+4. **CloudWatch Alarms**: Set up a CloudWatch alarm that notifies you when a Lambda function errors occur
 
 ## Cleanup
 
 **To manage costs**:
 
-1. **Keep your Lambda functions** (they're free when not running)
+1. **Keep your Lambda functions** (they're free when not running - no charges for idle functions!)
 2. **Delete any large test files** from S3
 3. **Monitor your usage** in the billing dashboard
-4. **Stop EC2 instance** if still running
+4. **Stop EC2 instance** if still running from previous weeks
+
+**Important**: Lambda functions only cost money when they're invoked, so there's no need to delete them. The free tier provides 1 million requests per month!
 
 ## Key Takeaways
 
 - **Serverless** = no server management, pay only for execution time
+- **LabRole** is used for all Lambda functions in AWS Learner Labs (you cannot create custom roles)
 - **Event-driven** architecture enables automatic responses to changes
-- **Lambda functions** can be triggered by many AWS services
+- **Lambda functions** can be triggered by many AWS services (S3, API Gateway, EventBridge, etc.)
 - **Cold starts** affect initial execution time but subsequent calls are faster
 - **CloudWatch** provides comprehensive monitoring and logging
 - **Serverless** is perfect for microservices and event processing
+- **boto3** (AWS SDK for Python) comes pre-installed in Lambda Python runtime
 
 ## Additional Resources
 
@@ -541,33 +579,50 @@ By the end of this lab, you will be able to:
 - [Serverless Application Lens](https://docs.aws.amazon.com/wellarchitected/latest/serverless-applications-lens/)
 - [Lambda Pricing](https://aws.amazon.com/lambda/pricing/)
 - [Python on Lambda Best Practices](https://docs.aws.amazon.com/lambda/latest/dg/python-handler.html)
+- [AWS Learner Labs Documentation](https://aws.amazon.com/training/digital/aws-academy-learner-labs/)
 
 ## Troubleshooting
 
 **Lambda function timing out?**
 
-- Increase timeout in Configuration → General configuration
+- Increase timeout in Configuration → General configuration (max 15 minutes)
 - Check for infinite loops or blocking operations
 - Optimize code for faster execution
+- Consider if Lambda is the right service (long-running tasks might be better on EC2)
 
 **S3 trigger not working?**
 
-- Verify Lambda has S3 read permissions
+- Verify LabRole has S3 read permissions (check Configuration → Permissions)
 - Check S3 event notification configuration
 - Look for error messages in CloudWatch logs
+- Ensure the Lambda function and S3 bucket are in the same region
 
 **Function not executing?**
 
-- Check IAM permissions for the Lambda execution role
+- Check LabRole permissions in Configuration → Permissions
 - Verify trigger configuration
-- Look for syntax errors in code
+- Look for syntax errors in code (check CloudWatch logs)
+- Test with the built-in Test feature before setting up triggers
 
 **Import errors in Lambda?**
 
 - Only standard Python libraries are available by default
-- For additional packages, you need to create deployment packages
 - boto3 and botocore are pre-installed
+- For additional packages, you would need to create deployment packages or Lambda layers (advanced topic)
+
+**"User is not authorized" errors?**
+
+- This is expected in Learner Labs - you cannot create or modify IAM roles
+- Always select `LabRole` as the execution role
+- LabRole has pre-configured permissions for most common Lambda use cases
+
+**Cannot find LabRole?**
+
+- Make sure you're in the correct AWS region
+- Check that your Learner Lab session is active
+- Try refreshing the Lambda console
+- If LabRole is truly missing, contact your instructor
 
 ---
 
-**Next Week Preview**: We'll explore RDS and learn how to set up managed databases in the cloud!
+**Next Week Preview**: We'll explore RDS and learn how to set up managed databases in the cloud, and connect them to our Lambda functions!
