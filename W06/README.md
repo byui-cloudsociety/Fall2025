@@ -2,7 +2,7 @@
 
 This week we'll dive into Amazon RDS (Relational Database Service) and learn how to manage databases in the cloud without the operational overhead!
 
-## ⚠️ AWS Learner Lab Note
+## AWS Learner Lab Note
 In AWS Learner Labs, you have **limited IAM permissions**. When creating RDS instances or connecting Lambda to databases, you'll work within these constraints. For Lambda functions, always use the existing **`LabRole`** as the execution role.
 
 ## Learning Objectives
