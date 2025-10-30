@@ -127,7 +127,7 @@ By the end of this lab, you will be able to:
    sudo yum update -y
    
    # Install MySQL client
-   sudo yum install -y mysql
+   sudo yum install -y mariadb105
    
    # Verify installation
    mysql --version
