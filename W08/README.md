@@ -2,7 +2,7 @@
 
 Welcome to the final technical lab before the Cloud-a-thon! This week we'll master AWS Identity and Access Management (IAM) and implement comprehensive security best practices within the constraints of AWS Learner Labs.
 
-## ⚠️ AWS Learner Lab Limitations
+## AWS Learner Lab Limitations
 - **Cannot create new IAM roles** - We'll work with existing roles
 - **Cannot modify trust relationships** - We'll use pre-configured roles
 - **Can create users, groups, and policies** - We'll focus on these
