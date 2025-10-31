@@ -18,5 +18,5 @@ Welcome to the Cloud Computing Society! This semester we'll explore AWS services
 | [Week 10](W10/README.md) | Cloud-a-thon Part 2 | Hackathon |
 | [Week 11](W11/README.md) | Thanksgiving Break | - |
 | [Week 12](W12/README.md) | Closing Social | Social Event |
-| [Week 13](W13/README.md) | Finals Week | - |
+| [Week 13](W13/README.md) | Dead Week | - |
 | [Week 14](W14/README.md) | Finals Week | - |
