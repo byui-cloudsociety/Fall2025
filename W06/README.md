@@ -317,7 +317,7 @@ By the end of this lab, you will be able to:
        app.run(host='0.0.0.0', port=5000, debug=True)
    ```
 
-   **Important**: Edit the file and replace `YOUR_RDS_ENDPOINT_HERE` with your actual RDS endpoint!
+   # **Important**: Edit the file and replace `YOUR_RDS_ENDPOINT_HERE` with your actual RDS endpoint!
 
 3. **Create HTML Templates**
    ```bash
